@@ -4,9 +4,9 @@ description: >-
   Scans code structure via static analysis and generates rich Markdown docs
   locally or with Gemini AI.
 version: 1.0.0
-homepage: https://github.com/mstdeveloper/docgen
-repository: https://github.com/mstdeveloper/docgen
-issue_tracker: https://github.com/mstdeveloper/docgen/issues
+homepage: https://github.com/mstdeveloper33/docgen
+repository: https://github.com/mstdeveloper33/docgen
+issue_tracker: https://github.com/mstdeveloper33/docgen/issues
 
 environment:
   sdk: ^3.10.4

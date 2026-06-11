@@ -23,13 +23,13 @@ dart pub global activate docgen
 ### From GitHub
 
 ```bash
-dart pub global activate --source git https://github.com/mstdeveloper/docgen.git
+dart pub global activate --source git https://github.com/mstdeveloper33/docgen.git
 ```
 
 ### Compile native binary
 
 ```bash
-git clone https://github.com/mstdeveloper/docgen.git
+git clone https://github.com/mstdeveloper33/docgen.git
 cd docgen
 dart pub get
 dart compile exe bin/docgen.dart -o docgen
@@ -229,7 +229,7 @@ jobs:
 Users install with:
 ```bash
 # Download from releases page
-curl -L -o docgen https://github.com/mstdeveloper/docgen/releases/latest/download/docgen-macos-arm64
+curl -L -o docgen https://github.com/mstdeveloper33/docgen/releases/latest/download/docgen-macos-arm64
 chmod +x docgen
 mv docgen /usr/local/bin/
 ```
@@ -245,7 +245,7 @@ Create a separate repo `homebrew-tap`, then add a formula:
 class Docgen < Formula
   desc "AI-powered documentation generator for Dart and Kotlin projects"
   homepage "https://github.com/mstdeveloper/docgen"
-  url "https://github.com/mstdeveloper/docgen/releases/download/v1.0.0/docgen-macos-arm64"
+  url "https://github.com/mstdeveloper33/docgen/releases/download/v1.0.0/docgen-macos-arm64"
   sha256 "REPLACE_WITH_SHA256"
   license "MIT"
 
@@ -257,7 +257,7 @@ end
 
 Users install with:
 ```bash
-brew tap mstdeveloper/tap
+brew tap mstdeveloper33/tap
 brew install docgen
 ```
 
@@ -298,7 +298,7 @@ brew install docgen
 ## Development
 
 ```bash
-git clone https://github.com/mstdeveloper/docgen.git
+git clone https://github.com/mstdeveloper33/docgen.git
 cd docgen
 dart pub get
 dart run bin/docgen.dart --help
