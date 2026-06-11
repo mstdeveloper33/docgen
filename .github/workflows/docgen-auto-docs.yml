@@ -13,8 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
-      - run: dart pub global activate docgen_cli
-      - run: docgen run
+      - run: dart pub get
+      - run: dart run bin/docgen.dart run
       - name: Commit docs
         run: |
           git config user.name "docgen[bot]"
