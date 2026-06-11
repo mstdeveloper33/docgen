@@ -1,4 +1,4 @@
-name: docgen
+name: docgen_cli
 description: >-
   AI-powered documentation generator for Flutter/Dart and Kotlin projects.
   Scans code structure via static analysis and generates rich Markdown docs

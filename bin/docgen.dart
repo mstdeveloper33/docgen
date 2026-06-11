@@ -1,4 +1,4 @@
-import 'package:docgen/src/commands/run_command.dart';
+import 'package:docgen_cli/src/commands/run_command.dart';
 
 const String version = '1.0.0';
 
