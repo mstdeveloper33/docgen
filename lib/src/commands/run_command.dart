@@ -4,9 +4,30 @@ import '../ai/ai_service.dart';
 import '../analyzer/dart_analyzer.dart';
 import '../analyzer/kotlin_parser.dart';
 import '../generator/local_generator.dart';
+import '../generator/readme_generator.dart';
 import '../git/git_diff.dart';
 import '../utils/config.dart';
 import '../utils/file_handler.dart';
+import '../utils/file_watcher.dart';
+import '../utils/progress.dart';
+
+class RunOptions {
+  final bool useAi;
+  final bool watch;
+  final String? only;
+  final List<String> exclude;
+  final OutputFormat format;
+  final String? diffRef;
+
+  RunOptions({
+    this.useAi = false,
+    this.watch = false,
+    this.only,
+    this.exclude = const [],
+    this.format = OutputFormat.markdown,
+    this.diffRef,
+  });
+}
 
 class RunCommand {
   static Future<void> init() async {
@@ -86,13 +107,76 @@ class RunCommand {
     print('🚀 You can now use "docgen run --ai"\n');
   }
 
-  static Future<void> run({bool useAi = false}) async {
-    final mode = useAi ? 'AI' : 'Local';
+  static Future<void> run(RunOptions options) async {
+    if (options.watch) {
+      await _runWatch(options);
+      return;
+    }
+
+    await _runOnce(options);
+  }
+
+  static Future<void> readme({bool useAi = false}) async {
+    print('📖 docgen readme - Generating project README...\n');
+
+    print('🔍 Scanning all project files...');
+    final files = await GitWatcher.getTargetFiles();
+
+    if (files.isEmpty) {
+      print('⚠️  No .dart or .kt files found.');
+      return;
+    }
+
+    print('📂 Found ${files.length} file(s).\n');
+
+    String content;
+
+    if (useAi) {
+      final config = await ConfigManager.load();
+      if (config == null) {
+        print('❌ Config not found. Run "docgen init" first.');
+        return;
+      }
+      final aiService = AiService.fromConfig(config);
+      print('🤖 Generating README with AI (${config.provider.name})...');
+
+      final structureJson = await ReadmeGenerator.generateStructureJson(files);
+      final prompt = '''
+You are a technical writer. Generate a professional README.md for this project.
+Include: project name, description, architecture overview, installation,
+usage examples, and API reference.
+Output RAW markdown only.
+
+Project structure:
+$structureJson
+''';
+      // Use AI service directly with custom prompt
+      final result = await aiService.generateDocumentation(
+        {'_raw_prompt': prompt},
+      );
+      content = result ?? await ReadmeGenerator.generate(files);
+    } else {
+      print('📝 Generating README with local template...');
+      content = await ReadmeGenerator.generate(files);
+    }
+
+    if (content.isEmpty) {
+      print('⚠️  Could not generate README.');
+      return;
+    }
+
+    final file = File('README_GENERATED.md');
+    await file.writeAsString(content);
+    print('\n✅ Saved: README_GENERATED.md');
+  }
+
+  static Future<void> _runOnce(RunOptions options) async {
+    final mode = options.useAi ? 'AI' : 'Local';
     print('📖 docgen run [$mode] - Generating documentation...\n');
 
     // 1. Load config if AI mode
     AiService? aiService;
-    if (useAi) {
+    if (options.useAi) {
       final config = await ConfigManager.load();
       if (config == null) {
         print('❌ Config not found. Run "docgen init" first.');
@@ -100,12 +184,17 @@ class RunCommand {
       }
       aiService = AiService.fromConfig(config);
       print('   Provider: ${config.provider.name}');
-      print('   Model: ${config.model ?? 'default'}\n');
+      print('   Model: ${config.model ?? 'default'}');
+      print('   Format: ${options.format.name}\n');
     }
 
     // 2. Find target files
     print('🔍 Scanning for target files...');
-    final files = await GitWatcher.getTargetFiles();
+    final files = await GitWatcher.getTargetFiles(
+      only: options.only,
+      exclude: options.exclude,
+      diffRef: options.diffRef,
+    );
 
     if (files.isEmpty) {
       print('⚠️  No .dart or .kt files found to process.');
@@ -117,59 +206,114 @@ class RunCommand {
     int successCount = 0;
     int skipCount = 0;
 
-    // 3. Process each file
+    // 3. Progress bar for 10+ files
+    final useProgress = files.length >= 10;
+    ProgressBar? progress;
+    if (useProgress) {
+      progress = ProgressBar(total: files.length);
+    }
+
+    // 4. Process each file
     for (final filePath in files) {
       final fileName = filePath.split(Platform.pathSeparator).last;
-      print('📄 Processing: $fileName');
 
-      // 3a. Analyze
-      Map<String, dynamic>? structure;
-
-      if (filePath.endsWith('.dart')) {
-        print('  🔬 Running Dart AST analysis...');
-        structure = await DartFileAnalyzer.analyze(filePath);
-      } else if (filePath.endsWith('.kt')) {
-        print('  🔬 Running Kotlin structure analysis...');
-        structure = await KotlinParser.analyze(filePath);
+      if (useProgress) {
+        progress!.increment(fileName);
+      } else {
+        print('📄 Processing: $fileName');
       }
 
+      // 4a. Analyze
+      final structure = await _analyzeFile(filePath, verbose: !useProgress);
+
       if (structure == null) {
-        print('  ⏭️  No structure found, skipping.\n');
+        if (!useProgress) print('  ⏭️  No structure found, skipping.\n');
         skipCount++;
         continue;
       }
 
-      // 3b. Generate documentation
+      // 4b. Generate documentation
       String? markdown;
 
-      if (useAi && aiService != null) {
-        print('  🤖 Generating docs with AI...');
+      if (options.useAi && aiService != null) {
+        if (!useProgress) print('  🤖 Generating docs with AI...');
         markdown = await aiService.generateDocumentation(structure);
       } else {
-        print('  📝 Generating docs with local template...');
+        if (!useProgress) print('  📝 Generating docs with local template...');
         markdown = LocalGenerator.generate(structure);
       }
 
       if (markdown == null || markdown.isEmpty) {
-        print('  ⏭️  Could not generate docs, skipping.\n');
+        if (!useProgress) print('  ⏭️  Could not generate docs, skipping.\n');
         skipCount++;
         continue;
       }
 
-      // 3c. Write output
+      // 4c. Write output
       final outputPath = await FileHandler.writeDocumentation(
         sourceFilePath: filePath,
         markdownContent: markdown,
+        format: options.format,
       );
 
-      print('  ✅ Saved: $outputPath\n');
+      if (!useProgress) print('  ✅ Saved: $outputPath\n');
       successCount++;
     }
 
-    // 4. Summary
+    // 5. Summary
+    if (useProgress) print('');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     print('📊 Summary: $successCount succeeded, $skipCount skipped');
     print('📁 Output folder: docs/');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  }
+
+  static Future<void> _runWatch(RunOptions options) async {
+    // First, run once
+    await _runOnce(options);
+
+    print('\n👀 Watching for file changes... (Ctrl+C to stop)\n');
+
+    final watcher = FileWatcher(watchPaths: [Directory.current.path]);
+    await watcher.watch((filePath) async {
+      final fileName = filePath.split(Platform.pathSeparator).last;
+      print('🔄 Changed: $fileName');
+
+      final structure = await _analyzeFile(filePath, verbose: false);
+      if (structure == null) return;
+
+      String? markdown;
+      if (options.useAi) {
+        final config = await ConfigManager.load();
+        if (config != null) {
+          final aiService = AiService.fromConfig(config);
+          markdown = await aiService.generateDocumentation(structure);
+        }
+      }
+      markdown ??= LocalGenerator.generate(structure);
+
+      if (markdown.isNotEmpty) {
+        final outputPath = await FileHandler.writeDocumentation(
+          sourceFilePath: filePath,
+          markdownContent: markdown,
+          format: options.format,
+        );
+        print('  ✅ Updated: $outputPath');
+      }
+    });
+  }
+
+  static Future<Map<String, dynamic>?> _analyzeFile(
+    String filePath, {
+    bool verbose = true,
+  }) async {
+    if (filePath.endsWith('.dart')) {
+      if (verbose) print('  🔬 Running Dart AST analysis...');
+      return DartFileAnalyzer.analyze(filePath);
+    } else if (filePath.endsWith('.kt')) {
+      if (verbose) print('  🔬 Running Kotlin structure analysis...');
+      return KotlinParser.analyze(filePath);
+    }
+    return null;
   }
 }
