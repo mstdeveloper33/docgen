@@ -1,0 +1,21 @@
+# Dart
+.dart_tool/
+.packages
+pubspec.lock
+
+# Generated docs (user output)
+docs/
+
+# Config with API keys
+.docgen.json
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Native compiled binary
+docgen

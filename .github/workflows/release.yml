@@ -1,0 +1,29 @@
+name: Release Binaries
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: docgen-linux-x64
+          - os: macos-latest
+            artifact: docgen-macos-arm64
+          - os: windows-latest
+            artifact: docgen-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart compile exe bin/docgen.dart -o ${{ matrix.artifact }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}
