@@ -1,0 +1,24 @@
+name: Auto Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'src/**'
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub global activate docgen_cli
+      - run: docgen run
+      - name: Commit docs
+        run: |
+          git config user.name "docgen[bot]"
+          git config user.email "docgen@users.noreply.github.com"
+          git add docs/
+          git diff --cached --quiet || git commit -m "docs: auto-update documentation [skip ci]"
+          git push

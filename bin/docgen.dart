@@ -20,6 +20,12 @@ Future<void> main(List<String> args) async {
     case 'readme':
       final useAi = args.contains('--ai');
       await RunCommand.readme(useAi: useAi);
+    case 'graph':
+      await RunCommand.graph();
+    case 'setup-ci':
+      await RunCommand.setupCi();
+    case 'template':
+      await RunCommand.createTemplate();
     case '--version':
     case '-v':
       print('docgen v$version');
@@ -69,6 +75,13 @@ RunOptions _parseRunOptions(List<String> args) {
     diffRef = args[diffIndex + 1];
   }
 
+  // --version v1.2.0 (versioned docs)
+  String? version;
+  final versionIndex = args.indexOf('--tag');
+  if (versionIndex != -1 && versionIndex + 1 < args.length) {
+    version = args[versionIndex + 1];
+  }
+
   return RunOptions(
     useAi: useAi,
     watch: watch,
@@ -76,6 +89,7 @@ RunOptions _parseRunOptions(List<String> args) {
     exclude: exclude,
     format: format,
     diffRef: diffRef,
+    version: version,
   );
 }
 
@@ -92,6 +106,9 @@ Commands:
   run --ai             Generate docs with AI
   readme               Generate project README
   readme --ai          Generate README with AI
+  graph                Generate dependency graph (Mermaid)
+  setup-ci             Install GitHub Actions workflows
+  template             Create customizable doc template
 
 Run Options:
   --ai                 Use configured AI provider
@@ -100,6 +117,7 @@ Run Options:
   --exclude <paths>    Exclude paths (comma-separated)
   --format <type>      Output format: markdown, html, json
   --diff <ref>         Only process files changed since git ref
+  --tag <version>      Save docs under docs/<version>/
 
 Supported Providers:
   Gemini, OpenAI, Claude, Ollama (local)
@@ -109,9 +127,12 @@ Examples:
   docgen run --ai --only lib/src/         # AI docs for lib/src only
   docgen run --format html                # HTML output
   docgen run --watch                      # Auto-regenerate on save
-  docgen run --diff HEAD~5                # Only files changed in last 5 commits
-  docgen run --exclude test/,generated/   # Skip test and generated folders
-  docgen readme --ai                      # Generate full project README with AI
+  docgen run --diff HEAD~5                # Only last 5 commits' changes
+  docgen run --exclude test/,generated/   # Skip folders
+  docgen run --tag v1.2.0                 # Versioned docs
+  docgen graph                            # Dependency diagram
+  docgen setup-ci                         # Install CI/CD workflows
+  docgen readme --ai                      # Full project README with AI
 
 Options:
   -h, --help       Show help

@@ -12,8 +12,10 @@ class FileHandler {
     required String sourceFilePath,
     required String markdownContent,
     OutputFormat format = OutputFormat.markdown,
+    String? version,
   }) async {
-    final dir = Directory(_outputDir);
+    final outputDir = version != null ? '$_outputDir/$version' : _outputDir;
+    final dir = Directory(outputDir);
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
     }
@@ -28,7 +30,7 @@ class FileHandler {
       OutputFormat.json => 'json',
     };
 
-    final outputPath = p.join(_outputDir, '$sanitized.$extension');
+    final outputPath = p.join(outputDir, '$sanitized.$extension');
     final content = switch (format) {
       OutputFormat.markdown => markdownContent,
       OutputFormat.html => _markdownToHtml(markdownContent),

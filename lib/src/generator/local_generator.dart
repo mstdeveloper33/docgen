@@ -1,7 +1,12 @@
 import 'package:path/path.dart' as p;
 
+import '../analyzer/cross_reference.dart';
+
 class LocalGenerator {
-  static String generate(Map<String, dynamic> structure) {
+  static String generate(
+    Map<String, dynamic> structure, {
+    Map<String, List<String>>? dependencyGraph,
+  }) {
     final buffer = StringBuffer();
     final filePath = structure['file'] as String;
     final fileName = p.basenameWithoutExtension(filePath);
@@ -12,6 +17,17 @@ class LocalGenerator {
     buffer.writeln();
     buffer.writeln('**Source:** `$filePath`');
     buffer.writeln();
+
+    // Dependency info
+    if (dependencyGraph != null) {
+      final depSection = CrossReferenceAnalyzer.generateDependencySection(
+        filePath,
+        dependencyGraph,
+      );
+      if (depSection.isNotEmpty) {
+        buffer.write(depSection);
+      }
+    }
 
     // Classes
     final classes = structure['classes'] as List<dynamic>? ?? [];
